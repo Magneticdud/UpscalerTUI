@@ -101,7 +101,7 @@ def run_command(cmd, verbose=True, cwd=None):
         print(f"CWD: {cwd}")
         print('='*60)
     
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, errors='replace')
     
     if result.stdout:
         print(result.stdout)

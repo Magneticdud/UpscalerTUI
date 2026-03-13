@@ -1,5 +1,7 @@
 # Upscaler TUI
 
+![Upscaler TUI](logo.webp)
+
 A simple Python TUI (Terminal User Interface) for using Real-CUGAN and Real-ESRGAN image upscaling tools.
 
 ## Prerequisites
