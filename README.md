@@ -24,24 +24,35 @@ python app.py
 ### Options
 
 **Real-CUGAN**
+
+| Model | Scale | Noise Levels |
+|-------|-------|--------------|
+| models-se | 2x, 3x, 4x | -1, 0, 1, 2, 3 (2x), -1, 0, 3 (3x, 4x) |
+| models-pro | 2x, 3x | -1, 3 |
+
 - Scale: 2x, 3x, 4x
-- Noise level: -1 (no denoise), 0, 1, 2, 3
-- Models: models-se, models-pro, models-nose
+- Noise level: -1 (no denoise), 0, 1, 2, 3 (denoise strength)
 - TTA mode available
 
 **Real-ESRGAN**
-- Scale: 2x, 3x, 4x
-- Models: realesr-animevideov3, realesrgan-x4plus, realesrgan-x4plus-anime, realesrnet-x4plus
-- TTA mode available
+
+| Model | Supported Scales |
+|-------|------------------|
+| realesr-animevideov3 | 2x, 3x, 4x |
+| realesrgan-x4plus | 4x only |
+| realesrgan-x4plus-anime | 4x only |
+| realesrnet-x4plus | 4x only |
+
+Note: Models marked as "x4" are trained specifically for 4x upscaling. Using them with lower scales produces cropped output.
 
 **Try All**
-- Runs all available programs with all model combinations
+- Runs all available programs with all valid model combinations
 - Useful for comparing results
 
 ### Output
 
 - Output files are saved in the same directory as input by default
-- Filename format: `{original_name}_{app}_{model}.{extension}`
+- Filename format: `{original_name}_{app}_{model}{suffix}.{extension}`
   - Example: `image_realcugan_models-se_n2_s2.png`
 
 ## Binary Requirements
@@ -49,7 +60,10 @@ python app.py
 The following binaries must be present in the `bin/` directory:
 - `realcugan-ncnn-vulkan`
 - `realesrgan-ncnn-vulkan`
-- Model directories (`models-se/`, `models-pro/`, `models-nose/`)
+- Model directories for Real-CUGAN: `models-se/`, `models-pro/`
+- Model directories for Real-ESRGAN: `models/`
+
+All models are already included in the repository. I downloaded them from the [Real-CUGAN releases](https://github.com/xinntao/Real-CUGAN-ncnn-vulkan/releases) and [Real-ESRGAN releases](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan/releases). If I missed any, please let me know.
 
 ## Keyboard Controls
 

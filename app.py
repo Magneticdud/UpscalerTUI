@@ -26,6 +26,13 @@ REALESRGAN_BIN = BIN_DIR / "realesrgan-ncnn-vulkan"
 REALCUGAN_MODELS = ["models-se", "models-pro"]
 REALESRGAN_MODELS = ["realesr-animevideov3", "realesrgan-x4plus", "realesrgan-x4plus-anime", "realesrnet-x4plus"]
 
+REALESRGAN_MODEL_SCALES = {
+    "realesr-animevideov3": ["2", "3", "4"],
+    "realesrgan-x4plus": ["4"],
+    "realesrgan-x4plus-anime": ["4"],
+    "realesrnet-x4plus": ["4"],
+}
+
 SCALES = ["2", "3", "4"]
 NOISE_LEVELS = ["-1", "0", "1", "2", "3"]
 
@@ -161,9 +168,15 @@ def try_all(input_path, output_dir=None):
         for scale, noise in combos:
             realcugan_combos.append((model_dir, scale, noise))
     
+    realesrgan_combos = []
+    for model_name in REALESRGAN_MODELS:
+        scales = REALESRGAN_MODEL_SCALES.get(model_name, SCALES)
+        for scale in scales:
+            realesrgan_combos.append((model_name, scale))
+    
     print(f"Will try {len(realcugan_combos)} Real-CUGAN combinations")
-    print(f"Will try {len(REALESRGAN_MODELS) * len(SCALES)} Real-ESRGAN combinations")
-    total_possible = len(images) * (len(realcugan_combos) + len(REALESRGAN_MODELS) * len(SCALES))
+    print(f"Will try {len(realesrgan_combos)} Real-ESRGAN combinations")
+    total_possible = len(images) * (len(realcugan_combos) + len(realesrgan_combos))
     print(f"Total: {total_possible} outputs\n")
     
     if not questionary.confirm("Continue?").ask():
@@ -184,13 +197,12 @@ def try_all(input_path, output_dir=None):
             if process_realcugan(img, output, scale, noise, model_dir):
                 success += 1
         
-        for model_name in REALESRGAN_MODELS:
-            for scale in SCALES:
-                output = get_output_path(img, "realesrgan", f"{model_name}_s{scale}", output_dir)
-                total += 1
-                print(f"\n[{total}] Real-ESRGAN | {model_name} | scale={scale}x")
-                if process_realesrgan(img, output, scale, model_name):
-                    success += 1
+        for model_name, scale in realesrgan_combos:
+            output = get_output_path(img, "realesrgan", f"{model_name}_s{scale}", output_dir)
+            total += 1
+            print(f"\n[{total}] Real-ESRGAN | {model_name} | scale={scale}x")
+            if process_realesrgan(img, output, scale, model_name):
+                success += 1
     
     print(f"\n{'='*60}")
     print(f"COMPLETED: {success}/{total} successful")
