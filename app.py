@@ -23,11 +23,37 @@ BIN_DIR = Path(__file__).parent / "bin"
 REALCUGAN_BIN = BIN_DIR / "realcugan-ncnn-vulkan"
 REALESRGAN_BIN = BIN_DIR / "realesrgan-ncnn-vulkan"
 
-REALCUGAN_MODELS = ["models-se", "models-pro", "models-nose"]
+REALCUGAN_MODELS = ["models-se", "models-pro"]
 REALESRGAN_MODELS = ["realesr-animevideov3", "realesrgan-x4plus", "realesrgan-x4plus-anime", "realesrnet-x4plus"]
 
 SCALES = ["2", "3", "4"]
 NOISE_LEVELS = ["-1", "0", "1", "2", "3"]
+
+NOISE_TO_MODEL = {
+    "models-se": {
+        "2": {"-1": "no-denoise", "0": "denoise1x", "1": "denoise2x", "2": "denoise3x", "3": "denoise3x"},
+        "3": {"-1": "no-denoise", "0": "denoise1x", "3": "denoise3x"},
+        "4": {"-1": "no-denoise", "0": "denoise1x", "3": "denoise3x"},
+    },
+    "models-pro": {
+        "2": {"-1": "conservative", "3": "denoise3x"},
+        "3": {"-1": "conservative", "3": "denoise3x"},
+    },
+}
+
+
+def get_valid_noise_levels(model_dir, scale):
+    return list(NOISE_TO_MODEL.get(model_dir, {}).get(scale, {}).keys())
+
+
+def get_available_realcugan_combinations(model_dir):
+    combinations = []
+    model_scales = NOISE_TO_MODEL.get(model_dir, {}).keys()
+    for scale in model_scales:
+        valid_noises = get_valid_noise_levels(model_dir, scale)
+        for noise in valid_noises:
+            combinations.append((scale, noise))
+    return combinations
 
 
 def get_realcugan_model_files(model_dir):
@@ -59,13 +85,16 @@ def get_output_path(input_path, app_name, model_name, output_dir=None):
     return output_dir / output_name
 
 
-def run_command(cmd, verbose=True):
+def run_command(cmd, verbose=True, cwd=None):
+    if cwd is None:
+        cwd = BIN_DIR.parent
     if verbose:
         print(f"\n{'='*60}")
         print(f"Running: {' '.join(str(x) for x in cmd)}")
+        print(f"CWD: {cwd}")
         print('='*60)
     
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     
     if result.stdout:
         print(result.stdout)
@@ -77,7 +106,7 @@ def run_command(cmd, verbose=True):
 
 def process_realcugan(input_path, output_path, scale, noise_level, model_dir, use_tta=False, gpu_id=None, threads=None):
     cmd = [str(REALCUGAN_BIN), "-i", str(input_path), "-o", str(output_path), 
-           "-s", scale, "-n", noise_level, "-m", str(BIN_DIR / model_dir)]
+           "-s", scale, "-n", noise_level, "-m", model_dir]
     
     if use_tta:
         cmd.append("-x")
@@ -125,9 +154,17 @@ def try_all(input_path, output_dir=None):
         return
     
     print(f"\nFound {len(images)} image(s) to process")
-    print(f"Will try {len(REALCUGAN_MODELS) * len(SCALES)} Real-CUGAN combinations")
+    
+    realcugan_combos = []
+    for model_dir in REALCUGAN_MODELS:
+        combos = get_available_realcugan_combinations(model_dir)
+        for scale, noise in combos:
+            realcugan_combos.append((model_dir, scale, noise))
+    
+    print(f"Will try {len(realcugan_combos)} Real-CUGAN combinations")
     print(f"Will try {len(REALESRGAN_MODELS) * len(SCALES)} Real-ESRGAN combinations")
-    print(f"Total: {len(images)} x {len(REALCUGAN_MODELS) * len(SCALES) + len(REALESRGAN_MODELS) * len(SCALES)} = {len(images) * (len(REALCUGAN_MODELS) * len(SCALES) + len(REALESRGAN_MODELS) * len(SCALES))} outputs\n")
+    total_possible = len(images) * (len(realcugan_combos) + len(REALESRGAN_MODELS) * len(SCALES))
+    print(f"Total: {total_possible} outputs\n")
     
     if not questionary.confirm("Continue?").ask():
         return
@@ -140,14 +177,12 @@ def try_all(input_path, output_dir=None):
         print(f"Processing: {img.name}")
         print(f"{'#'*60}")
         
-        for model_dir in REALCUGAN_MODELS:
-            for scale in SCALES:
-                for noise in NOISE_LEVELS:
-                    output = get_output_path(img, "realcugan", f"{model_dir}_n{noise}_s{scale}", output_dir)
-                    total += 1
-                    print(f"\n[{total}] Real-CUGAN | {model_dir} | noise={noise} | scale={scale}x")
-                    if process_realcugan(img, output, scale, noise, model_dir):
-                        success += 1
+        for model_dir, scale, noise in realcugan_combos:
+            output = get_output_path(img, "realcugan", f"{model_dir}_n{noise}_s{scale}", output_dir)
+            total += 1
+            print(f"\n[{total}] Real-CUGAN | {model_dir} | noise={noise} | scale={scale}x")
+            if process_realcugan(img, output, scale, noise, model_dir):
+                success += 1
         
         for model_name in REALESRGAN_MODELS:
             for scale in SCALES:
