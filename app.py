@@ -140,12 +140,14 @@ IMAGE_TYPE_LABELS = {
 
 # ── Signal handler ────────────────────────────────────────────────────────────
 
+
 def _sigint_handler(_sig, _frame):
     print("\nAborted.")
     sys.exit(0)
 
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────
+
 
 def get_valid_noise_levels(model_dir, scale):
     return list(NOISE_TO_MODEL.get(model_dir, {}).get(scale, {}).keys())
@@ -211,6 +213,7 @@ def get_image_files(input_path):
 
 # ── Preset persistence ────────────────────────────────────────────────────────
 
+
 def load_presets():
     try:
         with open(PRESETS_FILE) as f:
@@ -238,6 +241,7 @@ def save_preset(name, preset):
 
 
 # ── Command execution ─────────────────────────────────────────────────────────
+
 
 def run_command(cmd, cwd=None, show_command=True):
     if cwd is None:
@@ -274,11 +278,16 @@ def process_realcugan(
 ):
     cmd = [
         str(REALCUGAN_BIN),
-        "-i", str(input_path),
-        "-o", str(output_path),
-        "-s", scale,
-        "-n", noise_level,
-        "-m", model_dir,
+        "-i",
+        str(input_path),
+        "-o",
+        str(output_path),
+        "-s",
+        scale,
+        "-n",
+        noise_level,
+        "-m",
+        model_dir,
     ]
 
     if use_tta:
@@ -303,10 +312,14 @@ def process_realesrgan(
 ):
     cmd = [
         str(REALESRGAN_BIN),
-        "-i", str(input_path),
-        "-o", str(output_path),
-        "-s", scale,
-        "-n", model_name,
+        "-i",
+        str(input_path),
+        "-o",
+        str(output_path),
+        "-s",
+        scale,
+        "-n",
+        model_name,
     ]
 
     tile_size = REALESRGAN_TILE_SIZES.get(model_name)
@@ -323,6 +336,7 @@ def process_realesrgan(
 
 
 # ── Shared prompt helpers ─────────────────────────────────────────────────────
+
 
 def ask_advanced_options():
     """Ask GPU and thread options. Returns (gpu_id, threads) or (None, None) on abort."""
@@ -370,6 +384,7 @@ def ask_output_dir():
 
 
 # ── Guided flow ───────────────────────────────────────────────────────────────
+
 
 def guided_flow():
     # Offer to load a saved preset
@@ -425,7 +440,9 @@ def guided_flow():
             for s in valid_scales
         ]
         scale = questionary.select(
-            "How much do you want to enlarge?", choices=scale_choices, style=CUSTOM_STYLE
+            "How much do you want to enlarge?",
+            choices=scale_choices,
+            style=CUSTOM_STYLE,
         ).ask()
         if scale is None:
             return
@@ -484,6 +501,7 @@ def guided_flow():
 
 # ── Expert flow ───────────────────────────────────────────────────────────────
 
+
 def expert_flow():
     engine_choices = [
         questionary.Choice("Real-CUGAN", value="realcugan"),
@@ -501,6 +519,7 @@ def expert_flow():
 
 
 # ── Try All ───────────────────────────────────────────────────────────────────
+
 
 def try_all(input_path, output_dir=None):
     input_path = Path(input_path)
@@ -553,7 +572,9 @@ def try_all(input_path, output_dir=None):
             if ok:
                 success += 1
             noise_label = NOISE_LABELS.get(noise, noise)
-            model_label = f"{REALCUGAN_MODEL_LABELS.get(model_dir, model_dir)}, {noise_label}"
+            model_label = (
+                f"{REALCUGAN_MODEL_LABELS.get(model_dir, model_dir)}, {noise_label}"
+            )
             results.append((output.name, model_label, f"{scale}x", ok))
 
         for model_name, scale in realesrgan_combos:
@@ -585,6 +606,7 @@ def try_all(input_path, output_dir=None):
 
 # ── Individual expert flows ───────────────────────────────────────────────────
 
+
 def try_all_flow():
     input_path = questionary.text("Input file or directory:", style=CUSTOM_STYLE).ask()
     if not input_path:
@@ -610,8 +632,7 @@ def realcugan_flow():
         return
 
     model_choices = [
-        questionary.Choice(REALCUGAN_MODEL_LABELS[m], value=m)
-        for m in REALCUGAN_MODELS
+        questionary.Choice(REALCUGAN_MODEL_LABELS[m], value=m) for m in REALCUGAN_MODELS
     ]
     model = questionary.select(
         "Model:", choices=model_choices, style=CUSTOM_STYLE
@@ -653,7 +674,9 @@ def realcugan_flow():
     print(f"TTA: {'Yes' if use_tta else 'No'}")
 
     for img in images:
-        output = get_output_path(img, "realcugan", f"{model}_n{noise}_s{scale}", output_dir)
+        output = get_output_path(
+            img, "realcugan", f"{model}_n{noise}_s{scale}", output_dir
+        )
         if output_dir:
             output.parent.mkdir(parents=True, exist_ok=True)
         print(f"\nProcessing: {img.name} -> {output.name}")
@@ -716,6 +739,7 @@ def realesrgan_flow():
 
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
+
 def main_menu():
     while True:
         choice = questionary.select(
@@ -747,6 +771,7 @@ def main_menu():
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main():
     if not REALCUGAN_BIN.exists() or not REALESRGAN_BIN.exists():
