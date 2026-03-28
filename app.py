@@ -45,6 +45,12 @@ REALESRGAN_MODEL_SCALES = {
     "realesrnet-x4plus": ["4"],
 }
 
+# These models crash the AMD iGPU with default tile size; use a smaller tile
+REALESRGAN_TILE_SIZES = {
+    "realesrgan-x4plus": 100,
+    "realesrnet-x4plus": 100,
+}
+
 SCALES = ["2", "3", "4"]
 NOISE_LEVELS = ["-1", "0", "1", "2", "3"]
 
@@ -303,6 +309,9 @@ def process_realesrgan(
         "-n", model_name,
     ]
 
+    tile_size = REALESRGAN_TILE_SIZES.get(model_name)
+    if tile_size is not None:
+        cmd.extend(["-t", str(tile_size)])
     if use_tta:
         cmd.append("-x")
     if gpu_id is not None:
