@@ -2,14 +2,14 @@
 
 ![Upscaler TUI](logo.webp)
 
-A simple Python TUI (Terminal User Interface) for using Real-CUGAN and Real-ESRGAN image upscaling tools.
+A terminal UI for upscaling images with Real-CUGAN and Real-ESRGAN. Two modes: **Guided** (answer a few questions, get a great result) and **Expert** (full control over every parameter).
 
 ## Prerequisites
 
 1. Python 3.8+
 2. Vulkan runtime (required by the binaries)
 
-Install Python dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -17,61 +17,97 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the TUI:
-
 ```bash
 python app.py
 ```
 
-### Options
+Or, if installed via `pip install -e .`:
+
+```bash
+upscaler
+```
+
+## Modes
+
+### Guided mode
+
+The easiest way to get started. Answer four questions and the tool picks the right model for you.
+
+```
+What are you upscaling?
+  ❯ Photo / realistic image
+    Illustration / digital art
+    Anime / manga
+    Not sure — use the best
+
+How much do you want to enlarge?
+  ❯ 4x (recommended)
+
+Quality:
+  ❯ Balanced (faster)
+    Maximum quality (slower, ~8x the time)
+```
+
+You can save your settings as a named preset and reload them next time.
+
+Output filenames use a readable format: `photo_guided_photo_4x.png`
+
+### Expert mode
+
+Full control. Choose between Real-CUGAN and Real-ESRGAN, then configure model, scale, noise reduction, TTA, GPU, and thread count manually.
+
+### Try All
+
+Runs every valid model/scale/noise combination and shows a summary table at the end. Useful for comparing results and picking the best model for your image.
+
+## Models
 
 **Real-CUGAN**
 
-| Model | Scale | Noise Levels |
+| Model | Scale | Noise levels |
 |-------|-------|--------------|
-| models-se | 2x, 3x, 4x | -1, 0, 1, 2, 3 (2x), -1, 0, 3 (3x, 4x) |
-| models-pro | 2x, 3x | -1, 3 |
+| Standard (SE) | 2x, 3x, 4x | No reduction, light, medium, strong, very strong (2x); no reduction, light, very strong (3x, 4x) |
+| Professional (Pro) | 2x, 3x | No reduction, very strong |
 
-- Scale: 2x, 3x, 4x
-- Noise level: -1 (no denoise), 0, 1, 2, 3 (denoise strength)
-- TTA mode available
+Best for anime and manga.
 
 **Real-ESRGAN**
 
-| Model | Supported Scales |
-|-------|------------------|
-| realesr-animevideov3 | 2x, 3x, 4x |
-| realesrgan-x4plus | 4x only |
-| realesrgan-x4plus-anime | 4x only |
-| realesrnet-x4plus | 4x only |
+| Model | Scale | Best for |
+|-------|-------|----------|
+| Realistic photos — general purpose | 4x | Photos, realistic images |
+| Anime / illustrations — sharp lines | 4x | Digital art, illustrations |
+| Anime video — for video frames | 2x, 3x, 4x | Anime video frames |
+| Realistic photos — variant | 4x | Photos (alternative model) |
 
-Note: Models marked as "x4" are trained specifically for 4x upscaling. Using them with lower scales produces cropped output.
+Note: models trained for 4x only will produce cropped output at lower scales.
 
-**Try All**
-- Runs all available programs with all valid model combinations
-- Useful for comparing results
+## Output files
 
-### Output
+By default, output files are saved next to the input. You can specify a custom output directory in any mode.
 
-- Output files are saved in the same directory as input by default
-- Filename format: `{original_name}_{app}_{model}{suffix}.{extension}`
-  - Example: `image_realcugan_models-se_n2_s2.png`
+Filename format:
+- Guided: `{name}_guided_{type}_{scale}x.{ext}` — e.g. `photo_guided_photo_4x.png`
+- Expert: `{name}_realcugan_{model}_n{noise}_s{scale}.{ext}` — e.g. `photo_realcugan_models-se_n-1_s4.png`
 
-## Binary Requirements
+## Saved presets
 
-The following binaries must be present in the `bin/` directory:
+Guided mode lets you save your settings (image type, scale, quality) as a named preset in `~/.upscaler/presets.json`. On the next run, you can load a preset to skip the questions.
+
+## Keyboard controls
+
+- Arrow keys to navigate
+- Enter to select
+- Ctrl+C to abort at any point
+
+## Binary requirements
+
+The `bin/` directory must contain:
 - `realcugan-ncnn-vulkan`
 - `realesrgan-ncnn-vulkan`
-- Model directories for Real-CUGAN: `models-se/`, `models-pro/`
-- Model directories for Real-ESRGAN: `models/`
+- Model directories: `models-se/`, `models-pro/` (Real-CUGAN), `models/` (Real-ESRGAN)
 
-All models are already included in the repository. I downloaded them from the [Real-CUGAN releases](https://github.com/xinntao/Real-CUGAN-ncnn-vulkan/releases) and [Real-ESRGAN releases](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan/releases). If I missed any, please let me know.
-
-## Keyboard Controls
-
-- Use arrow keys to navigate menus
-- Press Enter to select
-- Use Space to toggle checkboxes
+All models are already included in the repository, downloaded from the [Real-CUGAN releases](https://github.com/xinntao/Real-CUGAN-ncnn-vulkan/releases) and [Real-ESRGAN releases](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan/releases).
 
 ## License
 

@@ -1,0 +1,15 @@
+[project]
+name = "upscaler-tui"
+version = "0.1.0"
+requires-python = ">=3.8"
+dependencies = [
+    "questionary",
+    "rich",
+]
+
+[project.scripts]
+upscaler = "app:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
