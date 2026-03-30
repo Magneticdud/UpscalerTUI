@@ -143,6 +143,49 @@ def test_image_type_labels_covers_all_presets():
         assert tipo in app.IMAGE_TYPE_LABELS, f"'{tipo}' missing from IMAGE_TYPE_LABELS"
 
 
+# ── jpeg2png applicability ────────────────────────────────────────────────────
+
+
+def test_jpeg2png_guided_types_are_subset_of_presets():
+    for t in app.JPEG2PNG_GUIDED_TYPES:
+        assert (
+            t in app.IMAGE_TYPE_PRESETS
+        ), f"'{t}' in JPEG2PNG_GUIDED_TYPES but not in IMAGE_TYPE_PRESETS"
+
+
+def test_jpeg2png_models_are_known():
+    all_models = set(app.REALCUGAN_MODELS) | set(app.REALESRGAN_MODELS)
+    for m in app.JPEG2PNG_MODELS:
+        assert m in all_models, f"'{m}' in JPEG2PNG_MODELS but not a known model"
+
+
+def test_jpeg2png_photo_types_excluded():
+    for t in {"photo", "not_sure"}:
+        assert t not in app.JPEG2PNG_GUIDED_TYPES
+
+
+def test_jpeg2png_photo_models_excluded():
+    for m in {"realesrgan-x4plus", "realesrnet-x4plus"}:
+        assert m not in app.JPEG2PNG_MODELS
+
+
+def test_run_jpeg2png_skips_non_jpeg(tmp_path):
+    png = tmp_path / "test.png"
+    png.write_bytes(b"\x89PNG\r\n\x1a\n")  # PNG magic bytes
+    tmp_dir, result = app.run_jpeg2png(png)
+    assert tmp_dir is None
+    assert result is None
+
+
+def test_run_jpeg2png_skips_missing_binary(tmp_path, monkeypatch):
+    jpg = tmp_path / "test.jpg"
+    jpg.write_bytes(b"\xff\xd8\xff")  # JPEG magic bytes
+    monkeypatch.setattr(app, "JPEG2PNG_BIN", tmp_path / "nonexistent_jpeg2png")
+    tmp_dir, result = app.run_jpeg2png(jpg)
+    assert tmp_dir is None
+    assert result is None
+
+
 # ── load_presets error handling ───────────────────────────────────────────────
 
 

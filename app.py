@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import json
 import os
+import shutil
 import signal
 import subprocess
 import glob
 import sys
+import tempfile
 from pathlib import Path
 
 import questionary
@@ -27,6 +29,7 @@ CUSTOM_STYLE = Style(
 BIN_DIR = Path(__file__).parent / "bin"
 REALCUGAN_BIN = BIN_DIR / "realcugan-ncnn-vulkan"
 REALESRGAN_BIN = BIN_DIR / "realesrgan-ncnn-vulkan"
+JPEG2PNG_BIN = BIN_DIR / "jpeg2png"
 
 PRESETS_FILE = Path(__file__).parent / "presets.json"
 
@@ -94,6 +97,18 @@ NOISE_LABELS = {
     "3": "Very strong reduction",
 }
 
+# ── jpeg2png applicability ────────────────────────────────────────────────────
+# jpeg2png works well for flat/line art; poor for photographs
+
+JPEG2PNG_GUIDED_TYPES = {"illustration", "anime"}
+
+JPEG2PNG_MODELS = {
+    "models-se",
+    "models-pro",
+    "realesrgan-x4plus-anime",
+    "realesr-animevideov3",
+}
+
 # ── Guided mode presets ───────────────────────────────────────────────────────
 
 IMAGE_TYPE_PRESETS = {
@@ -144,6 +159,40 @@ IMAGE_TYPE_LABELS = {
 def _sigint_handler(_sig, _frame):
     print("\nAborted.")
     sys.exit(0)
+
+
+# ── jpeg2png pre-processing ───────────────────────────────────────────────────
+
+
+def run_jpeg2png(img_path):
+    """Convert a JPEG to PNG via jpeg2png in a temp dir.
+
+    Returns (tmp_dir, png_path) on success; caller must shutil.rmtree(tmp_dir).
+    Returns (None, None) if the image is not a JPEG, the binary is missing,
+    or conversion fails — caller should use the original path unchanged.
+    """
+    if img_path.suffix.lower() not in {".jpg", ".jpeg"}:
+        return None, None
+    if not JPEG2PNG_BIN.exists():
+        return None, None
+
+    tmp_dir = Path(tempfile.mkdtemp())
+    tmp_jpg = tmp_dir / img_path.name
+    shutil.copy2(img_path, tmp_jpg)
+
+    result = subprocess.run(
+        [str(JPEG2PNG_BIN), str(tmp_jpg)],
+        capture_output=True,
+        text=True,
+        errors="replace",
+    )
+
+    tmp_png = tmp_dir / (img_path.stem + ".png")
+    if result.returncode == 0 and tmp_png.exists():
+        return tmp_dir, tmp_png
+
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    return None, None
 
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -484,17 +533,34 @@ def guided_flow():
     print(f"Quality: {'Maximum (TTA)' if use_tta else 'Balanced'}")
     print(f"Engine:  {engine} / {model}\n")
 
+    use_jpeg2png = image_type in JPEG2PNG_GUIDED_TYPES
+
     for img in images:
+        tmp_dir, src = run_jpeg2png(img) if use_jpeg2png else (None, None)
+        src = src or img
+
         output = get_output_path(img, "guided", f"{image_type}_{scale}x", output_dir)
+        if tmp_dir:
+            output = output.with_suffix(".png")
         if output_dir:
             output.parent.mkdir(parents=True, exist_ok=True)
+
+        if tmp_dir:
+            print(f"  jpeg2png: {img.name} → {src.name}")
         print(f"Processing: {img.name} -> {output.name}")
-        if engine == "realcugan":
-            process_realcugan(
-                img, output, scale, noise, model, use_tta, show_command=False
-            )
-        else:
-            process_realesrgan(img, output, scale, model, use_tta, show_command=False)
+
+        try:
+            if engine == "realcugan":
+                process_realcugan(
+                    src, output, scale, noise, model, use_tta, show_command=False
+                )
+            else:
+                process_realesrgan(
+                    src, output, scale, model, use_tta, show_command=False
+                )
+        finally:
+            if tmp_dir:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
 
     print("\nDone!")
 
@@ -560,34 +626,51 @@ def try_all(input_path, output_dir=None):
         print(f"Processing: {img.name}")
         print(f"{'#'*60}")
 
-        for model_dir, scale, noise in realcugan_combos:
-            output = get_output_path(
-                img, "realcugan", f"{model_dir}_n{noise}_s{scale}", output_dir
-            )
-            total += 1
-            print(
-                f"\n[{total}] Real-CUGAN | {model_dir} | noise={noise} | scale={scale}x"
-            )
-            ok = process_realcugan(img, output, scale, noise, model_dir)
-            if ok:
-                success += 1
-            noise_label = NOISE_LABELS.get(noise, noise)
-            model_label = (
-                f"{REALCUGAN_MODEL_LABELS.get(model_dir, model_dir)}, {noise_label}"
-            )
-            results.append((output.name, model_label, f"{scale}x", ok))
+        # Run jpeg2png once per image; reuse for all compatible models
+        j2p_dir, j2p_src = run_jpeg2png(img)
+        if j2p_dir:
+            print(f"  jpeg2png: {img.name} → {j2p_src.name}")
 
-        for model_name, scale in realesrgan_combos:
-            output = get_output_path(
-                img, "realesrgan", f"{model_name}_s{scale}", output_dir
-            )
-            total += 1
-            print(f"\n[{total}] Real-ESRGAN | {model_name} | scale={scale}x")
-            ok = process_realesrgan(img, output, scale, model_name)
-            if ok:
-                success += 1
-            model_label = REALESRGAN_MODEL_LABELS.get(model_name, model_name)
-            results.append((output.name, model_label, f"{scale}x", ok))
+        try:
+            for model_dir, scale, noise in realcugan_combos:
+                src = j2p_src if j2p_dir else img
+                output = get_output_path(
+                    img, "realcugan", f"{model_dir}_n{noise}_s{scale}", output_dir
+                )
+                if j2p_dir:
+                    output = output.with_suffix(".png")
+                total += 1
+                print(
+                    f"\n[{total}] Real-CUGAN | {model_dir} | noise={noise} | scale={scale}x"
+                )
+                ok = process_realcugan(src, output, scale, noise, model_dir)
+                if ok:
+                    success += 1
+                noise_label = NOISE_LABELS.get(noise, noise)
+                model_label = (
+                    f"{REALCUGAN_MODEL_LABELS.get(model_dir, model_dir)}, {noise_label}"
+                )
+                results.append((output.name, model_label, f"{scale}x", ok))
+
+            for model_name, scale in realesrgan_combos:
+                use_j2p = j2p_dir and model_name in JPEG2PNG_MODELS
+                src = j2p_src if use_j2p else img
+                output = get_output_path(
+                    img, "realesrgan", f"{model_name}_s{scale}", output_dir
+                )
+                if use_j2p:
+                    output = output.with_suffix(".png")
+                total += 1
+                print(f"\n[{total}] Real-ESRGAN | {model_name} | scale={scale}x")
+                ok = process_realesrgan(src, output, scale, model_name)
+                if ok:
+                    success += 1
+                model_label = REALESRGAN_MODEL_LABELS.get(model_name, model_name)
+                results.append((output.name, model_label, f"{scale}x", ok))
+
+        finally:
+            if j2p_dir:
+                shutil.rmtree(j2p_dir, ignore_errors=True)
 
     # Rich summary table (after all questionary prompts are done)
     console = Console()
@@ -674,13 +757,28 @@ def realcugan_flow():
     print(f"TTA: {'Yes' if use_tta else 'No'}")
 
     for img in images:
+        tmp_dir, src = run_jpeg2png(img)
+        src = src or img
+
         output = get_output_path(
             img, "realcugan", f"{model}_n{noise}_s{scale}", output_dir
         )
+        if tmp_dir:
+            output = output.with_suffix(".png")
         if output_dir:
             output.parent.mkdir(parents=True, exist_ok=True)
+
+        if tmp_dir:
+            print(f"\n  jpeg2png: {img.name} → {src.name}")
         print(f"\nProcessing: {img.name} -> {output.name}")
-        process_realcugan(img, output, scale, noise, model, use_tta, gpu_id, threads)
+
+        try:
+            process_realcugan(
+                src, output, scale, noise, model, use_tta, gpu_id, threads
+            )
+        finally:
+            if tmp_dir:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
 
     print("\nDone!")
 
@@ -727,12 +825,27 @@ def realesrgan_flow():
     print(f"Scale: {scale}x")
     print(f"TTA: {'Yes' if use_tta else 'No'}")
 
+    use_jpeg2png = model in JPEG2PNG_MODELS
+
     for img in images:
+        tmp_dir, src = run_jpeg2png(img) if use_jpeg2png else (None, None)
+        src = src or img
+
         output = get_output_path(img, "realesrgan", f"{model}_s{scale}", output_dir)
+        if tmp_dir:
+            output = output.with_suffix(".png")
         if output_dir:
             output.parent.mkdir(parents=True, exist_ok=True)
+
+        if tmp_dir:
+            print(f"\n  jpeg2png: {img.name} → {src.name}")
         print(f"\nProcessing: {img.name} -> {output.name}")
-        process_realesrgan(img, output, scale, model, use_tta, gpu_id, threads)
+
+        try:
+            process_realesrgan(src, output, scale, model, use_tta, gpu_id, threads)
+        finally:
+            if tmp_dir:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
 
     print("\nDone!")
 
