@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
+import glob
 import json
 import os
 import shutil
 import signal
 import subprocess
-import glob
 import sys
 import tempfile
 from pathlib import Path
@@ -84,9 +84,9 @@ REALCUGAN_MODEL_LABELS = {
 
 REALESRGAN_MODEL_LABELS = {
     "realesr-animevideov3": "Anime video — for video frames",
-    "realesrgan-x4plus": "Realistic photos — general purpose",
+    "realesrnet-x4plus": "Realistic photos — general purpose",
     "realesrgan-x4plus-anime": "Anime / illustrations — sharp lines",
-    "realesrnet-x4plus": "Realistic photos — variant",
+    "realesrgan-x4plus": "Realistic photos — variant",
 }
 
 NOISE_LABELS = {
@@ -114,7 +114,7 @@ JPEG2PNG_MODELS = {
 IMAGE_TYPE_PRESETS = {
     "photo": {
         "engine": "realesrgan",
-        "model": "realesrgan-x4plus",
+        "model": "realesrnet-x4plus",
         "scale": "4",
         "noise": None,
     },
@@ -132,7 +132,7 @@ IMAGE_TYPE_PRESETS = {
     },
     "not_sure": {
         "engine": "realesrgan",
-        "model": "realesrgan-x4plus",
+        "model": "realesrnet-x4plus",
         "scale": "4",
         "noise": None,
     },
@@ -296,7 +296,7 @@ def run_command(cmd, cwd=None, show_command=True):
     if cwd is None:
         cwd = BIN_DIR.parent
     if show_command:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Running: {' '.join(str(x) for x in cmd)}")
         print(f"CWD: {cwd}")
         print("=" * 60)
@@ -622,9 +622,9 @@ def try_all(input_path, output_dir=None):
     results = []
 
     for img in images:
-        print(f"\n{'#'*60}")
+        print(f"\n{'#' * 60}")
         print(f"Processing: {img.name}")
-        print(f"{'#'*60}")
+        print(f"{'#' * 60}")
 
         # Run jpeg2png once per image; reuse for all compatible models
         j2p_dir, j2p_src = run_jpeg2png(img)
