@@ -19,7 +19,7 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-# su carta 80g yhh## Usage
+### Usage
 
 ```bash
 python app.py
@@ -78,6 +78,56 @@ upscaler-linux
 ```
 
 On Windows, run `upscaler-windows.exe`. The DLLs in `bin/` (`vcomp140.dll`, `vcomp140d.dll`) must stay alongside the binary.
+
+Run without arguments to open the GUI. Pass any flag to use the CLI instead.
+
+### CLI
+
+The Go binary doubles as a command-line tool — no GUI is opened when arguments are passed.
+
+**Guided mode** — same presets as the GUI, choose by image type:
+
+```bash
+upscaler --input photo.jpg --type photo
+upscaler --input ./frames --type anime --scale 4 --tta --output ./out
+```
+
+Valid types: `photo`, `illustration`, `anime`, `not_sure`.
+`--scale` is optional and defaults to the recommended value for the chosen type.
+
+**Expert mode** — full control:
+
+```bash
+upscaler --input ./dir --engine realcugan --model models-se --scale 2 --noise -1
+upscaler --input img.jpg --engine realesrgan --model realesrgan-x4plus-anime --scale 4 --tta
+upscaler --input img.jpg --engine realesrgan --model realesrnet-x4plus --scale 4 --gpu 0 --threads 2:2:2
+```
+
+`--noise` is required for `realcugan` (values: `-1`, `0`, `1`, `2`, `3`).
+
+**Try All** — run every model combination and print a results table:
+
+```bash
+upscaler --input ./dir --try-all --output ./results
+```
+
+**All flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--input` | Input file or directory (required) |
+| `--type` | Guided mode: `photo`, `illustration`, `anime`, `not_sure` |
+| `--engine` | Expert mode: `realcugan` or `realesrgan` |
+| `--model` | Model name (see Models section below) |
+| `--scale` | Scale factor: `2`, `3`, `4` |
+| `--noise` | Noise level for realcugan: `-1`, `0`, `1`, `2`, `3` |
+| `--tta` | Maximum quality mode (~8x slower) |
+| `--gpu` | GPU ID (`0`, `1`, … or `-1` for CPU) |
+| `--threads` | Thread count, e.g. `2:2:2` |
+| `--output` | Output directory (default: same as input) |
+| `--try-all` | Run all model combinations |
+
+`Ctrl+C` cancels cleanly in all modes.
 
 ## Modes
 
