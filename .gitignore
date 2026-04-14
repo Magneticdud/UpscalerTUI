@@ -3,3 +3,7 @@ __pycache__/
 .venv/
 *.jpg
 *.png
+upscaler-linux
+upscaler-windows.exe
+.pytest_cache/
+dist/

@@ -1,10 +1,14 @@
-# Upscaler TUI
+# Upscaler TUI+GUI
 
-![Upscaler TUI](logo.webp)
+![Upscaler](logo.webp)
 
-A terminal UI for upscaling images with Real-CUGAN and Real-ESRGAN. Two modes: **Guided** (answer a few questions, get a great result) and **Expert** (full control over every parameter).
+A cross-platform GUI for upscaling images with Real-CUGAN and Real-ESRGAN. Runs on Linux and Windows, can choose between Python on the terminal or the Go GUI program.
 
-## Prerequisites
+Three modes: **Guided** (answer a few questions, get a great result), **Expert** (full control over every parameter), and **Try All** (run every model combination and compare).
+
+## Python version:
+
+### Prerequisites
 
 1. Python 3.8+
 2. Vulkan runtime (required by the binaries)
@@ -15,7 +19,7 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-## Usage
+# su carta 80g yhh## Usage
 
 ```bash
 python app.py
@@ -27,49 +31,86 @@ Or, if installed via `pip install -e .`:
 upscaler
 ```
 
+## Go version:
+
+### Prerequisites
+
+- Vulkan runtime (required by the upscaling binaries)
+- Linux: `libGL`, `libX11`, and friends — already present on any desktop Linux
+
+No Python. No pip. Just run the binary.
+
+### Building from source
+
+**Linux:**
+
+```bash
+# Install Fyne build dependencies (Fedora)
+sudo dnf install mesa-libGL-devel libXcursor-devel libXrandr-devel \
+                 libXinerama-devel libXi-devel libXxf86vm-devel
+
+make linux
+```
+
+**Windows** (cross-compiled from Linux):
+
+```bash
+# Install mingw-w64 (Fedora)
+sudo dnf install mingw64-gcc
+
+make windows
+```
+
+**Both at once:**
+
+```bash
+make all
+```
+
+Output: `upscaler-linux` and `upscaler-windows.exe`.
+
+### Usage
+
+Place the binary next to the `bin/` directory (already set up in this repo) and run it.
+
+```
+upscaler-linux
+```
+
+On Windows, run `upscaler-windows.exe`. The DLLs in `bin/` (`vcomp140.dll`, `vcomp140d.dll`) must stay alongside the binary.
+
 ## Modes
 
 ### Guided mode
 
-The easiest way to get started. Answer four questions and the tool picks the right model for you.
+The easiest way to get started. Answer a few questions and the tool picks the right model automatically.
 
-```
-What are you upscaling?
-  ❯ Photo / realistic image
-    Illustration / digital art
-    Anime / manga
-    Not sure — use the best
+1. Choose what you are upscaling: photo, illustration, anime, or not sure
+2. Choose the scale factor
+3. Choose quality: Balanced (faster) or Maximum (~8x slower, uses TTA)
+4. Optionally set a custom output directory
 
-How much do you want to enlarge?
-  ❯ 4x (recommended)
-
-Quality:
-  ❯ Balanced (faster)
-    Maximum quality (slower, ~8x the time)
-```
-
-You can save your settings as a named preset and reload them next time.
-
-Output filenames use a readable format: `photo_guided_photo_4x.png`
+You can save your choices as a named preset and reload them next time.
 
 ### Expert mode
 
-Full control. Choose between Real-CUGAN and Real-ESRGAN, then configure model, scale, noise reduction, TTA, GPU, and thread count manually.
+Full control. Choose the engine (Real-CUGAN or Real-ESRGAN), model, scale, noise reduction (Real-CUGAN only), TTA, GPU ID, and thread count.
+
+GPU ID: `0`, `1`, etc. for specific GPUs; `-1` to force CPU.
+Threads: `load:proc:save` format, e.g. `2:2:2`. Leave empty for defaults.
 
 ### Try All
 
-Runs every valid model/scale/noise combination and shows a summary table at the end. Useful for comparing results and picking the best model for your image.
+Runs every valid model/scale/noise combination and shows a results table at the end. Useful for comparing outputs and picking the best model for your image.
 
 ## Models
 
-**Real-CUGAN**
+**Real-CUGAN** — best for anime and manga
 
 | Model | Scale | Noise levels |
 |-------|-------|--------------|
 | Standard (SE) | 2x, 3x, 4x | No reduction, light, medium, strong, very strong (2x); no reduction, light, very strong (3x, 4x) |
 | Professional (Pro) | 2x, 3x | No reduction, very strong |
-
-Best for anime and manga.
 
 **Real-ESRGAN**
 
@@ -80,32 +121,40 @@ Best for anime and manga.
 | Anime video — for video frames | 2x, 3x, 4x | Anime video frames |
 | Realistic photos — variant | 4x | Photos (alternative model) |
 
-Note: models trained for 4x only will produce cropped output at lower scales.
+Note: the two photo models use a smaller tile size automatically to avoid crashes on AMD iGPUs.
 
 ## Output files
 
-By default, output files are saved next to the input. You can specify a custom output directory in any mode.
+Output files are saved next to the input by default. You can specify a custom output directory in any mode.
 
 Filename format:
-- Guided: `{name}_guided_{type}_{scale}x.{ext}` — e.g. `photo_guided_photo_4x.png`
+- Guided: `{name}_guided_{type}_{scale}x.{ext}` — e.g. `photo_guided_anime_2x.png`
 - Expert: `{name}_realcugan_{model}_n{noise}_s{scale}.{ext}` — e.g. `photo_realcugan_models-se_n-1_s4.png`
 
 ## Saved presets
 
-Guided mode lets you save your settings (image type, scale, quality) as a named preset in `~/.upscaler/presets.json`. On the next run, you can load a preset to skip the questions.
+Guided mode lets you save your settings (image type, scale, quality) as a named preset in `presets.json` next to the binary. On the next run, load a preset to skip the questions.
 
-## Keyboard controls
+The format is compatible with presets saved by the original Python version of this app.
 
-- Arrow keys to navigate
-- Enter to select
-- Ctrl+C to abort at any point
+## Binary layout
 
-## Binary requirements
+The `bin/` directory must stay next to the executable and contain:
 
-The `bin/` directory must contain:
-- `realcugan-ncnn-vulkan`
-- `realesrgan-ncnn-vulkan`
-- Model directories: `models-se/`, `models-pro/` (Real-CUGAN), `models/` (Real-ESRGAN)
+```
+bin/
+  realcugan-ncnn-vulkan        (Linux)
+  realcugan-ncnn-vulkan.exe    (Windows)
+  realesrgan-ncnn-vulkan       (Linux)
+  realesrgan-ncnn-vulkan.exe   (Windows)
+  jpeg2png                     (Linux, optional — improves JPEG quality for anime)
+  jpeg2png.exe                 (Windows, optional)
+  vcomp140.dll                 (Windows runtime, required)
+  vcomp140d.dll                (Windows runtime, required)
+  models-se/                   (Real-CUGAN SE models)
+  models-pro/                  (Real-CUGAN Pro models)
+  models/                      (Real-ESRGAN models)
+```
 
 All models are already included in the repository, downloaded from the [Real-CUGAN releases](https://github.com/xinntao/Real-CUGAN-ncnn-vulkan/releases) and [Real-ESRGAN releases](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan/releases).
 
